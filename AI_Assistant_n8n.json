@@ -1,0 +1,995 @@
+{
+  "name": "AI Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        -48
+      ],
+      "id": "8cf5966d-345e-436a-9c19-9289797c59be",
+      "name": "Telegram Trigger",
+      "webhookId": "b3940465-a34c-44f3-86a4-d9cd083540ff",
+      "credentials": {
+        "telegramApi": {
+          "id": "xTNl9s4Yp5MepYYA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"message\"][\"voice\"] !== undefined}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "d6752ac1-e0cc-42b4-9499-16b4c309857a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "22a7930a-c186-4785-a44f-0b2bcf557732",
+                    "leftValue": "={{$json[\"message\"][\"text\"]}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1232,
+        -48
+      ],
+      "id": "aeb1687f-c78c-4718-8dd8-575b3b65077e",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2128,
+        -32
+      ],
+      "id": "d052e6fc-2615-44a6-b5ca-2e24eefa4b77",
+      "name": "Send a text message",
+      "webhookId": "051fe501-d38f-48a5-8400-bcd9bf3ad34e",
+      "credentials": {
+        "telegramApi": {
+          "id": "xTNl9s4Yp5MepYYA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "uk"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1600,
+        -160
+      ],
+      "id": "6092990f-4d4a-4083-acd5-70c94b2df027",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "0w7a49P2miLdjqnf",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message?.text || $('Transcribe a recording').item.json.text }}",
+        "options": {
+          "systemMessage": "=Ти Telegram-асистент.\n\nОсновні правила\n\n* Відповідай українською мовою, якщо користувач явно не попросив іншу.\n* Відповідай звичайним текстом.\n* Не використовуй HTML або Markdown.\n* Не вигадуй факти, дати, час, персональні дані або будь-яку відсутню інформацію.\n* Якщо даних достатньо для виконання дії - виконуй її одразу.\n* Якщо інформації недостатньо, результат неоднозначний або існує кілька можливих варіантів - постав уточнювальне запитання.\n* Використовуй інструменти лише тоді, коли вони справді потрібні.\n* За потреби використовуй кілька інструментів послідовно.\n* Завжди заверши всі необхідні виклики інструментів перед відповіддю користувачу.\n\nРобота з пам'яттю та даними користувача\n\n* Не покладайся на Chat Memory для зберігання персональних даних.\n* Якщо потрібна інформація про користувача, спочатку перевір профіль через Select Rows.\n* Для зміни профілю використовуй Update Rows.\n* Оновлюй профіль лише якщо користувач прямо просить:\n\n  * запам'ятати інформацію;\n  * зберегти інформацію;\n  * оновити інформацію;\n  * змінити інформацію про себе.\n* Не змінюй профіль без явного дозволу користувача.\n\nКалендар\n\nЯкщо користувач просить створити, знайти, змінити, перенести або видалити подію:\n\n* Використовуй інструменти календаря.\n* Використовуй часовий пояс Europe/Kyiv.\n* Для відносних дат і часу обчислюй точні дату та час відносно поточного моменту.\n* Для створення події визнач:\n\n  * назву;\n  * дату;\n  * час початку;\n  * час завершення.\n* Якщо час завершення не вказано - встановлюй його на 1 годину пізніше часу початку.\n* Якщо потрібно змінити або видалити подію, але ID невідомий:\n\n  1. Знайди подію.\n  2. Отримай її ID.\n  3. Виконай потрібну дію.\n\nЗавдання\n\nЯкщо користувач просить створити, переглянути, змінити, завершити або видалити завдання:\n\n* Використовуй Google Tasks.\n* Якщо для зміни, завершення або видалення потрібен Task ID і він невідомий:\n\n  1. Виконай пошук завдань.\n  2. Знайди найбільш відповідне завдання.\n  3. Отримай його Task ID.\n  4. Виконай потрібну дію.\n* Якщо знайдено кілька схожих завдань і неможливо однозначно вибрати потрібне - постав уточнювальне запитання.\n\nПошта\n\nЯкщо користувач просить надіслати, знайти, прочитати або відповісти на лист:\n\n* Використовуй Gmail.\n* Якщо потрібно прочитати або відповісти на лист, але Message ID невідомий:\n\n  1. Спочатку знайди лист.\n  2. Отримай Message ID.\n  3. Виконай читання або відповідь.\n* Якщо знайдено кілька відповідних листів і неможливо визначити потрібний - попроси уточнення.\n\nВибір інструментів\n\n* Спочатку намагайся визначити, чи потрібен інструмент.\n* Не викликай інструменти без необхідності.\n* Якщо потрібна дія над існуючим об'єктом (подія, завдання, лист), але його ID невідомий - спочатку виконай пошук.\n* Якщо для виконання дії потрібні дані користувача - спочатку перевір профіль.\n\nНіколи не припускай часовий пояс.\n\nЯкщо часовий пояс події явно не вказаний у календарі або відповіді інструмента, вважай подію локальною для Europe/Kyiv.\n\nНе роби припущень про американські або інші часові пояси без явних даних.\nПоточна дата і час:\n{{ $now }}",
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1808,
+        -32
+      ],
+      "id": "2dafefe5-dfb0-4c75-be5b-c6a127291d52",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1424,
+        -160
+      ],
+      "id": "b0761561-f66c-4262-9f61-c1f2b23a66d4",
+      "name": "Get a file",
+      "webhookId": "78900ccb-1c0d-4bca-bf42-a328cad2ab57",
+      "credentials": {
+        "telegramApi": {
+          "id": "xTNl9s4Yp5MepYYA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "profile",
+          "mode": "list",
+          "cachedResultName": "profile"
+        },
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}",
+        "where": {
+          "values": [
+            {
+              "column": "user_id",
+              "value": "={{ $('Telegram Trigger').item.json.message.from.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1472,
+        320
+      ],
+      "id": "d1451a7f-7806-4108-98ba-76ae32b4424e",
+      "name": "Select Rows",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "Ztck3LZdmgqvGVJV",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Отримує дані профілю користувача з бази даних PostgreSQL.\n\nВикористовуй цей інструмент коли потрібно дізнатися інформацію про користувача:\n\nім'я\nдату народження\nмісто\nуніверситет\nспеціальність\nкурс\nхарчові вподобання\nцілі\nінші персональні дані\n\nПеред тим як ставити питання про персональні дані, спочатку перевір профіль через цей інструмент."
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "profile",
+          "mode": "list",
+          "cachedResultName": "profile"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+            "course": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('course', `Навчальний курс, не міняти без потреби`, 'number') }}",
+            "city": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('city', `Місто проживання користувача, не міняти без потреби`, 'string') }}",
+            "occupation": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('occupation', `Вид занятості користувача, не міняти без потреби`, 'string') }}",
+            "university": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('university', `Університет користувача, не міняти без потреби`, 'string') }}",
+            "specialty": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('specialty', `Спеціальність ВНЗ, не міняти без потреби`, 'string') }}",
+            "food_preferences": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('food_preferences', `Харчові звички або обмеження, не міняти без потреби`, 'string') }}",
+            "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notes', `Інша важлива інформація про користувача, не міняти без потреби`, 'string') }}"
+          },
+          "matchingColumns": [
+            "user_id"
+          ],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "birth_date",
+              "displayName": "birth_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "occupation",
+              "displayName": "occupation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "university",
+              "displayName": "university",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "specialty",
+              "displayName": "specialty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "course",
+              "displayName": "course",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "food_preferences",
+              "displayName": "food_preferences",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1584,
+        320
+      ],
+      "id": "4c5b4e53-e03e-4558-aba2-e4cd9fddcd6c",
+      "name": "Update Rows",
+      "credentials": {
+        "postgres": {
+          "id": "Ztck3LZdmgqvGVJV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "medium"
+          }
+        },
+        "options": {
+          "maxTokens": 5000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1312,
+        176
+      ],
+      "id": "761bc9ba-3176-42d7-b7db-450ee4106f79",
+      "name": "Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "0w7a49P2miLdjqnf",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.from.id }}",
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1424,
+        176
+      ],
+      "id": "f0f15f8c-4675-4998-86c1-3792fcbb44b1",
+      "name": "Chat Memory"
+    },
+    {
+      "parameters": {
+        "task": "bVptX09ncXdTdlZZUXdfeA",
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', `Коротка назва завдання у 2-8 слів без дати, часу та опису.`, 'string') }}",
+        "additionalFields": {
+          "dueDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Due_Date', `Крайній термін виконання завдання. Використовуй коли користувач вказує дату або час виконання.`, 'string') }}",
+          "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', `Додаткова інформація про завдання. Використовуй якщо користувач надає деталі або пояснення.`, 'string') }}",
+          "status": "needsAction"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        464
+      ],
+      "id": "1a6f8d03-155b-48e0-aa86-f6e43b269194",
+      "name": "Create a task",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "IRJ71pC4nDAJLTsq",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "task": "bVptX09ncXdTdlZZUXdfeA",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', `Видаляє завдання за його Task ID. Використовуй тільки після того, як Task ID був отриманий через Get Task або Get Many Tasks.`, 'string') }}"
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        464
+      ],
+      "id": "41d5d192-1164-4a9a-a69e-398bcd7ce911",
+      "name": "Delete a task",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "IRJ71pC4nDAJLTsq",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "task": "bVptX09ncXdTdlZZUXdfeA",
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', `Поверни всі завдання лише якщо користувач явно просить показати всі, усі доступні або повний список завдань.\nВ інших випадках вимкни цей параметр/скороти кількість виводів для зменшення кількості результатів.`, 'boolean') }}",
+        "additionalFields": {
+          "showCompleted": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Show_Completed', `Можеш шукати серед завершених, якщо я попрошу`, 'boolean') }}",
+          "showDeleted": false,
+          "showHidden": false
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        464
+      ],
+      "id": "dac9b162-92bd-4762-9975-85fea34dfee1",
+      "name": "Get many tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "IRJ71pC4nDAJLTsq",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "task": "bVptX09ncXdTdlZZUXdfeA",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', `Знайди завдання, яке відповідає опису користувача`, 'string') }}"
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        464
+      ],
+      "id": "b51a1cbf-96ff-448a-982a-507f9c8cdf72",
+      "name": "Get a task",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "IRJ71pC4nDAJLTsq",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "task": "bVptX09ncXdTdlZZUXdfeA",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', `ID завдання для оновлення. Якщо ID невідомий - спочатку знайди завдання через Get Many Tasks.`, 'string') }}",
+        "updateFields": {
+          "completed": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Completion_Date', `Дата завершення завдання. Використовуй, коли потрібно позначити завдання як виконане.`, 'string') }}",
+          "dueDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Due_Date', `Новий дедлайн завдання. Використовуй лише якщо користувач просить змінити або встановити дату виконання.`, 'string') }}",
+          "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', `Додаткова інформація про завдання. Використовуй, якщо користувач хоче змінити або додати деталі.`, 'string') }}",
+          "status": "completed",
+          "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', `Нова коротка назва завдання. Використовуй, якщо користувач просить перейменувати завдання.`, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        464
+      ],
+      "id": "6cc3beff-33c1-4ab4-8663-a24191d9ef4f",
+      "name": "Update a task",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "IRJ71pC4nDAJLTsq",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Create a calendar event when the user asks to schedule, plan, remind or create a meeting.",
+        "calendar": {
+          "__rl": true,
+          "value": "59aacc5dd10a0ce473aea0b96faee969558fbba0520ad9391a13d6733b1e8f4d@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "N8N"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', `Date and time in ISO format. Use Europe/Kyiv timezone. Use the exact date and time requested by the user.`, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', `Date and time in ISO format. Use Europe/Kyiv timezone. Use the exact date and time requested by the user.`, 'string') }}",
+        "additionalFields": {
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', `Generate a short informative event title based on the user's request.\n\nExamples:\n\"співбесіда в ПриватБанк завтра о 10:20\" -> \"Співбесіда в ПриватБанк\"\n\"пара з баз даних о 14:00\" -> \"Пара з баз даних\"\n\"зустріч з викладачем\" -> \"Зустріч з викладачем\"`, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2208,
+        416
+      ],
+      "id": "84ddd07b-fd73-49b1-930b-f1529573d7c7",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "KL6EmZKjS53TK7Ey",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "59aacc5dd10a0ce473aea0b96faee969558fbba0520ad9391a13d6733b1e8f4d@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "N8N"
+        },
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', `Якщо потрібні якісь дані про користувача - можеш пошукати дані в базі даних`, 'boolean') }}",
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2336,
+        416
+      ],
+      "id": "93827ccc-bb70-4434-81ea-e25732f5f0ce",
+      "name": "Get many events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "KL6EmZKjS53TK7Ey",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "59aacc5dd10a0ce473aea0b96faee969558fbba0520ad9391a13d6733b1e8f4d@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "N8N"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', `ID події для оновлення. Якщо ID невідомий - спочатку знайди подію через Get Many Events.`, 'string') }}",
+        "useDefaultReminders": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Use_Default_Reminders', `Використовуй стандартні нагадування календаря. Змінюй лише якщо користувач явно просить налаштувати нагадування.`, 'boolean') }}",
+        "updateFields": {
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Description', `Якщо потрібні якісь дані про користувача - можеш пошукати дані в базі даних\nНовий опис події. Використовуй якщо користувач хоче змінити або додати деталі події.`, 'string') }}",
+          "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+          "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', `Нова назва події. Створи коротку інформативну назву або використай ту, яку вказав користувач.`, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2464,
+        416
+      ],
+      "id": "6583accf-50a9-4e31-a224-787cb3673da9",
+      "name": "Update an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "KL6EmZKjS53TK7Ey",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message_ID', `Унікальний ідентифікатор листа для відповіді. Якщо Message ID невідомий, спочатку знайди потрібний лист через Get Many Messages або Get a Message, а потім використай його ID.`, 'string') }}",
+        "emailType": "text",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', `Текст відповіді на лист. Сформуй ввічливу та доречну відповідь відповідно до запиту користувача та контексту листування.`, 'string') }}",
+        "options": {
+          "appendAttribution": false,
+          "bccList": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('BCC', `Прихована копія листа. Використовуй лише якщо користувач явно вказав email для прихованої копії.`, 'string') }}",
+          "senderName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sender_Name', `Ім'я відправника, яке буде показано в листі. Використовуй лише якщо користувач просить відправити лист від певного імені.`, 'string') }}",
+          "replyToSenderOnly": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Reply_to_Sender_Only', `Увімкни лише якщо користувач просить відповісти тільки автору листа без інших учасників ланцюжка.`, 'boolean') }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        2560,
+        304
+      ],
+      "id": "a8b3f7cf-c866-475f-8920-2c99da21faa1",
+      "name": "Reply to a message",
+      "webhookId": "190ed10a-55db-4dd0-95ce-505aea03290f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Mfousyt763mBIsWk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message_ID', `Унікальний ідентифікатор листа Gmail. Використовуй Message ID, отриманий через Get Many Messages. Якщо користувач вказує лист за темою, відправником або змістом, спочатку знайди його через Get Many Messages, потім використай отриманий Message ID для читання листа.`, 'string') }}"
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        2704,
+        304
+      ],
+      "id": "c5506d43-a515-4abd-90b1-c5bee7394147",
+      "name": "Get a message",
+      "webhookId": "841d4552-b239-4ef0-b189-98a8def43ab3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Mfousyt763mBIsWk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', `Email адреса одержувача. Використовуй лише якщо користувач явно вказав email або його можна однозначно визначити. Якщо email невідомий - попроси користувача вказати його.`, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', `Коротка тема листа. Створюй інформативну тему на основі змісту повідомлення.`, 'string') }}",
+        "emailType": "text",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', `Основний текст листа. Формуй повний текст листа відповідно до запиту користувача.`, 'string') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        2832,
+        304
+      ],
+      "id": "fad1c681-3125-4462-ae5c-a22fcccc82a4",
+      "name": "Send a message",
+      "webhookId": "4599f510-f1da-4c88-b9e5-4a3a6b77267c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Mfousyt763mBIsWk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}",
+        "filters": {
+          "includeSpamTrash": false,
+          "q": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Search', `Пошуковий запит Gmail. Використовуй для пошуку листів за темою, текстом, відправником або ключовими словами. Наприклад: \"приватбанк\", \"рахунок\", \"amazon\", \"співбесіда\".`, 'string') }}",
+          "receivedAfter": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Received_After', `Дата, після якої потрібно шукати листи. Використовуй для запитів типу \"за останній тиждень\", \"після 1 червня\", \"нові листи\".`, 'string') }}",
+          "receivedBefore": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Received_Before', `Дата, до якої потрібно шукати листи.`, 'string') }}",
+          "sender": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sender', `Email відправника. Використовуй, коли користувач просить знайти листи від конкретної людини або компанії.`, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        2976,
+        304
+      ],
+      "id": "4b147843-a838-4ab6-89b1-87592876f22a",
+      "name": "Get many messages",
+      "webhookId": "bb773724-f4f7-4152-ab73-d2ba46f9128b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Mfousyt763mBIsWk",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Rows": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Rows": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a task": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a task": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a task": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a task": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update an event": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to a message": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Europe/Kyiv",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "0c6898f7-76ae-4a83-a3c0-76539cac9dde",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "98166fa27adb93c650f5c5f35fa3a19bb77d02fb88e678cece80a99551e2a2f9"
+  },
+  "id": "8Ud07nQXZJHfVP8VfZjzW",
+  "tags": []
+}
