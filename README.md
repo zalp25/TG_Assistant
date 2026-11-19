@@ -1,96 +1,97 @@
 # TG Assistant
 
-A private Telegram assistant built as a single n8n workflow that manages Google Tasks, Google Calendar, Gmail and a personal profile from text or voice messages.
+**Українська** | [English](README_EN.md)
 
-You write or say something like "remind me to buy milk tomorrow at 6 PM" in Telegram. An OpenAI agent works out what you mean, calls the right Google or PostgreSQL tool and answers in the same chat. Voice notes are transcribed first, so both inputs go through the same agent. The bot only answers its owner, and it asks before sending any email.
+Приватний Telegram-асистент на одному n8n-воркфлоу: керує Google Tasks, Google Calendar, Gmail і профілем користувача через текстові та голосові повідомлення.
 
-The assistant talks in Ukrainian (the system prompt and transcription are set to it), so the screenshots below are in Ukrainian with English captions.
+Пишеш або наговорюєш у Telegram щось на кшталт «нагадай завтра о 18:00 купити молоко». Агент на OpenAI розбирає запит, викликає потрібний інструмент Google чи PostgreSQL і відповідає в тому ж чаті. Голосові спершу розпізнаються в текст, тому обидва типи повідомлень потрапляють до одного агента. Бот відповідає лише власнику, а перед надсиланням листа завжди питає підтвердження.
 
-![Full workflow in n8n](docs/text_input_workflow.png)
+![Повний воркфлоу в n8n](docs/workflow.png)
 
-*The whole workflow: trigger and allowlist on the left, the AI Agent in the middle, its 14 tools along the bottom, reply and error reply on the right.*
+*Увесь воркфлоу: зліва тригер і перевірка доступу, посередині AI Agent, під ним 14 інструментів, справа відповідь і повідомлення про помилку.*
 
-## Demo
+## Демо
 
-### Text message
+### Текстове повідомлення
 
-![Text chat](docs/text_input.png)
+![Текстовий чат](docs/text_input.png)
+![Шлях виконання для тексту](docs/text_input_workflow.png)
 
-A plain text greeting goes straight from the Switch to the agent, and the agent replies without calling any tool.
+Звичайне привітання йде зі Switch прямо до агента. Агент відповідає без жодного інструмента.
 
-### Voice message
+### Голосове повідомлення
 
-![Voice note creates a task](docs/voice_input.png)
-![Voice execution path](docs/voice_input_workflow.png)
+![Голосове створює задачу](docs/voice_input.png)
+![Шлях виконання для голосового](docs/voice_input_workflow.png)
 
-A 4-second voice note becomes a Google Task "Купити молоко" ("Buy milk") due tomorrow at 18:00. The execution goes through Download voice, Transcribe voice, AI Agent and Create a task.
+Голосове на 4 секунди перетворюється на задачу в Google Tasks «Купити молоко» на завтра о 18:00. Виконання проходить через Download voice, Transcribe voice, AI Agent і Create a task.
 
-### Voice + short-term memory
+### Голосове + короткострокова пам'ять
 
-![Follow-up about the voice note](docs/voice_tempmemory.png)
-![Memory execution path](docs/voice_tempmemory_workflow.png)
+![Уточнення щодо голосового](docs/voice_tempmemory.png)
+![Шлях виконання з пам'яттю](docs/voice_tempmemory_workflow.png)
 
-The follow-up "what exactly did I say in the voice message?" is answered from chat memory, with no tool call.
+На питання «Що саме я сказав у голосовому?» агент відповідає з пам'яті чату, інструменти не викликаються.
 
-### Calendar
+### Календар
 
-![Calendar question with clarification](docs/calendar.png)
-![Calendar execution path](docs/calendar_workflow.png)
+![Питання про календар з уточненням](docs/calendar.png)
+![Шлях виконання для календаря](docs/calendar_workflow.png)
 
-"What's on my calendar tomorrow?" is ambiguous between Calendar and Tasks, so the agent asks one clarifying question, then lists the event through Get many events.
+Запит «Які задачі в мене завтра в календарі?» можна зрозуміти і як Calendar, і як Tasks. Агент ставить одне уточнювальне запитання, а потім показує подію через Get many events.
 
-### Email with confirmation
+### Лист із підтвердженням
 
-![Email confirmation dialog](docs/email.png)
-![Email send execution path](docs/email_workflow.png)
-![Received email in Gmail](docs/email_result.png)
+![Підтвердження надсилання листа](docs/email.png)
+![Шлях виконання для листа](docs/email_workflow.png)
+![Отриманий лист у Gmail](docs/email_result.png)
 
-The agent shows the recipient, subject and text, waits for "yes, I confirm", and only then calls Send a message. The last screenshot is the email arriving in Gmail.
+Агент показує адресата, тему й текст, чекає на «Так, підтверджую» і тільки тоді викликає Send a message. На останньому скріншоті лист уже в Gmail.
 
-### User profile in PostgreSQL
+### Профіль користувача в PostgreSQL
 
-![Profile question](docs/database.png)
-![Profile lookup execution path](docs/database_workflow.png)
-![Profile row in Postgres](docs/database_structure.png)
+![Питання про профіль](docs/database.png)
+![Шлях виконання для профілю](docs/database_workflow.png)
+![Рядок профілю в Postgres](docs/database_structure.png)
 
-"Where do I study?" is answered from the `profile` table through Get user profile. The psql output shows the full row the agent reads from.
+На «Де я навчаюсь?» агент відповідає з таблиці `profile` через Get user profile. Вивід psql показує весь рядок, з якого він читає.
 
-### Unsupported input
+### Непідтримуваний тип повідомлення
 
-![Sticker and photo rejected](docs/wrong_input.png)
-![Fallback execution path](docs/wrong_input_workflow.png)
+![Стікер і фото відхилено](docs/wrong_input.png)
+![Шлях виконання для fallback](docs/wrong_input_workflow.png)
 
-A sticker and a photo go to the Switch fallback output, and the bot replies "I only understand text and voice for now" without calling OpenAI.
+Стікер і фото йдуть у fallback-вихід Switch. Бот відповідає «Я поки розумію лише текст і голосові», а OpenAI навіть не викликається.
 
-## Features
+## Можливості
 
-- Text and voice input. Voice notes are downloaded from Telegram and transcribed by OpenAI with the language set to Ukrainian.
-- Google Tasks: create, list, get, update (including marking done) and delete tasks in one task list.
-- Google Calendar: create, list and update events in one calendar. Events without an end time get one hour.
-- Gmail: search (up to 15 results), read, reply and send.
-- A user profile in PostgreSQL (city, occupation, university, specialty, course, food preferences, notes). The agent reads it before asking personal questions and writes to it only when asked to remember something.
-- Short-term chat memory per Telegram user, so follow-up questions and confirmations keep their context.
-- Web search through the OpenAI model's built-in search tool.
-- All dates are in `Europe/Kyiv`. The current date, weekday and time are inserted into the system prompt on every run, so "tomorrow" or "on Friday" resolve to real dates.
+- Текст і голос. Голосові завантажуються з Telegram і розпізнаються OpenAI з мовою `uk`.
+- Google Tasks: створити, показати список, отримати, оновити (зокрема позначити виконаною) і видалити задачу в одному списку.
+- Google Calendar: створити, показати й оновити події в одному календарі. Якщо час завершення не вказано, подія триває годину.
+- Gmail: пошук (до 15 результатів), читання, відповідь і надсилання.
+- Профіль у PostgreSQL: місто, зайнятість, університет, спеціальність, курс, харчові вподобання, нотатки. Агент дивиться в профіль, перш ніж питати щось особисте, і записує туди лише на пряме прохання.
+- Короткострокова пам'ять чату для кожного користувача Telegram, щоб уточнення й підтвердження не губили контекст.
+- Пошук в інтернеті через вбудований web search моделі OpenAI.
+- Усі дати в `Europe/Kyiv`. Поточні дата, день тижня й час підставляються в системний промпт при кожному запуску, тому «завтра» чи «в п'ятницю» перетворюються на конкретні дати.
 
-## Architecture
+## Архітектура
 
-Every Telegram message hits the trigger, then an IF node that compares the sender's ID with the owner's. Everyone else gets "this is a private bot" and the run ends. The owner's messages go to a Switch with three outputs: voice, text, and a fallback for everything else.
+Кожне повідомлення з Telegram потрапляє в тригер, а потім в IF-ноду, яка порівнює ID відправника з ID власника. Усі інші отримують «Це приватний бот», і на цьому виконання завершується. Повідомлення власника йдуть у Switch з трьома виходами: голос, текст і fallback для всього іншого.
 
-Voice goes through download and transcription, text goes straight on, and both reach the same AI Agent. The agent runs on `gpt-4.1-mini` with up to 8 tool calls per message. Its tools are 5 Google Tasks nodes, 3 Calendar nodes, 4 Gmail nodes and 2 Postgres nodes. Most tool parameters are filled by the model through `$fromAI()`, and each parameter has its own short instruction. The Telegram user ID for the database query is read from the trigger, not from the model.
+Голосове проходить завантаження й розпізнавання, текст іде напряму, і обидва потрапляють в один AI Agent. Агент працює на `gpt-4.1-mini` і може зробити до 8 викликів інструментів на одне повідомлення. Інструментів 14: 5 для Google Tasks, 3 для Calendar, 4 для Gmail і 2 для Postgres. Більшість параметрів інструментів модель заповнює через `$fromAI()`, і кожен параметр має власну коротку інструкцію. Telegram ID для запиту до бази береться з тригера, а не від моделі.
 
-The agent's success output sends its answer back to the chat. Its error output sends "something went wrong, try again".
+Успішний вихід агента надсилає відповідь у чат. Вихід помилки надсилає «Щось пішло не так, спробуй ще раз».
 
 ```mermaid
 flowchart LR
     TG[Telegram Trigger] --> WL{If in Whitelist}
-    WL -- not owner --> UN[Reply unauthorized]
-    WL -- owner --> SW{Voice or text}
-    SW -- voice --> DL[Download voice]
+    WL -- не власник --> UN[Reply unauthorized]
+    WL -- власник --> SW{Voice or text}
+    SW -- голос --> DL[Download voice]
     DL --> TR[Transcribe voice<br/>OpenAI]
     TR --> AG[AI Agent]
-    SW -- text --> AG
-    SW -- other --> TE[Reply type error]
+    SW -- текст --> AG
+    SW -- інше --> TE[Reply type error]
 
     LLM[gpt-4.1-mini<br/>+ web search] -.-> AG
     MEM[Short-term memory] -.-> AG
@@ -99,64 +100,64 @@ flowchart LR
     AG -.-> GC[Google Calendar x3]
     AG -.-> GM[Gmail x4]
 
-    AG -- success --> RP[Send reply]
-    AG -- error --> ER[Reply agent error]
+    AG -- успіх --> RP[Send reply]
+    AG -- помилка --> ER[Reply agent error]
 ```
 
-Solid arrows are the execution path. Dotted arrows are the model, memory and tools attached to the agent.
+Суцільні стрілки показують шлях виконання. Пунктирні: модель, пам'ять та інструменти, підключені до агента.
 
-## Security and reliability
+## Безпека і надійність
 
-- **Owner-only access.** `If in Whitelist` checks `message.from.id` against `YOUR_TELEGRAM_USER_ID` before anything else runs. Other users never reach OpenAI or the Google tools.
-- **Email needs confirmation.** The system prompt requires the agent to show the recipient and text and to send or reply only after an explicit "yes". The email screenshot above shows this exchange.
-- **Email content is data.** The prompt tells the agent never to follow instructions found inside emails, even ones addressed to it. This is the main defence against prompt injection through incoming mail.
-- **Unsupported messages get an answer.** Photos, stickers, documents and the rest go to the Switch fallback and get a fixed reply instead of failing silently.
-- **Agent errors get an answer.** The AI Agent node uses n8n's "continue with error output", so a failed run sends a short error message to the chat instead of leaving the user waiting.
-- **Updates keep unchanged fields.** Before updating a task, event or profile, the agent is told to fetch the current record and pass back every field the user did not ask to change. The calendar update tool repeats this in its field descriptions. The psql screenshot shows a profile row with every column still filled.
-- **Deleting a task needs confirmation.** The agent names the task first and deletes it only after you agree.
+- **Доступ лише для власника.** `If in Whitelist` звіряє `message.from.id` з `YOUR_TELEGRAM_USER_ID` до будь-яких інших дій. Сторонні користувачі не доходять ні до OpenAI, ні до інструментів Google.
+- **Лист тільки після підтвердження.** Системний промпт вимагає показати адресата й текст і надсилати або відповідати лише після явного «так». Цей діалог видно на скріншоті з листом.
+- **Вміст листів це дані.** Промпт забороняє виконувати інструкції з тексту листів, навіть якщо вони звернені до агента. Це основний захист від prompt injection через вхідну пошту.
+- **Відповідь на непідтримувані повідомлення.** Фото, стікери, документи тощо йдуть у fallback Switch і отримують фіксовану відповідь, а не мовчання.
+- **Відповідь на помилку агента.** У ноді AI Agent увімкнено «continue with error output», тож якщо запуск впаде, користувач отримає коротке повідомлення про помилку.
+- **Оновлення не чіпають інші поля.** Перед оновленням задачі, події чи профілю агент має отримати поточний запис і передати назад усі поля, які користувач не просив змінювати. В описах полів інструмента оновлення календаря це повторено. На скріншоті з psql видно рядок профілю, де всі колонки заповнені.
+- **Видалення задачі після підтвердження.** Агент спершу називає задачу і видаляє її лише після згоди.
 
-## Easy to extend
+## Як розширювати
 
-- **New capability = one tool node.** To add, say, Google Drive search, you drop a Google Drive Tool node on the canvas, connect it to the agent's Tool input and add one line about when to use it to the system prompt. The rest of the flow stays the same.
-- **The model is one node.** `GPT-4.1 mini` is a separate sub-node. Swapping it for another OpenAI model, or another provider's chat model node, means replacing that node without touching the tools or prompt.
-- **Behaviour is plain text.** The system prompt and every `$fromAI()` description are text fields in the n8n editor. Changing how titles are generated or when to ask for clarification doesn't involve any code.
-- **More users = more conditions.** The allowlist is one IF condition. Adding a second user means adding another condition with OR, or replacing it with a check against a list of IDs. The profile table and chat memory are already keyed by Telegram user ID. The Google tools still use the owner's account.
-- **Other input types follow the same pattern.** The Switch fallback marks where a new branch goes, for example photos through an image-capable model before the agent.
+- **Нова можливість це одна нода-інструмент.** Щоб додати, наприклад, пошук у Google Drive, треба поставити Google Drive Tool на полотно, під'єднати до входу Tool агента й дописати в системний промпт один рядок про те, коли ним користуватися. Решта воркфлоу не змінюється.
+- **Модель це окрема нода.** `GPT-4.1 mini` винесено в окрему суб-ноду. Щоб перейти на іншу модель OpenAI чи іншого провайдера, досить замінити цю ноду, інструменти й промпт лишаються як є.
+- **Поведінка задається текстом.** Системний промпт і всі описи `$fromAI()` це звичайні текстові поля в редакторі n8n. Змінити, як генеруються назви задач чи коли ставити уточнювальне запитання, можна без коду.
+- **Більше користувачів = більше умов.** Allowlist це одна умова в IF. Для другого користувача додається ще одна умова через OR або перевірка за списком ID. Таблиця профілю й пам'ять чату вже прив'язані до Telegram ID. Інструменти Google при цьому працюють з акаунтом власника.
+- **Інші типи вводу за тим самим принципом.** Fallback-вихід Switch показує, куди ставити нову гілку, наприклад для фото через модель, що розуміє зображення, перед агентом.
 
-## Tech stack
+## Технології
 
-- n8n (AI Agent and LangChain nodes), self-hosted
-- OpenAI: `gpt-4.1-mini` with web search, audio transcription
+- n8n (AI Agent і LangChain-ноди), self-hosted
+- OpenAI: `gpt-4.1-mini` з web search, розпізнавання аудіо
 - Telegram Bot API
-- Google Tasks, Google Calendar and Gmail APIs over OAuth2
-- PostgreSQL 17 (in Docker in my setup)
+- Google Tasks, Google Calendar і Gmail API через OAuth2
+- PostgreSQL 17 (у мене в Docker)
 
-## Setup
+## Налаштування
 
-### 1. Make n8n reachable over HTTPS
+### 1. Зробити n8n доступним по HTTPS
 
-The Telegram Trigger registers a webhook, and Telegram only calls HTTPS URLs. On a local machine, run a tunnel such as `ngrok http 5678` and start n8n with `WEBHOOK_URL=https://<your-subdomain>.ngrok-free.app/`. On a server, use your domain.
+Telegram Trigger реєструє вебхук, а Telegram звертається тільки на HTTPS-адреси. На локальній машині запусти тунель, наприклад `ngrok http 5678`, і стартуй n8n з `WEBHOOK_URL=https://<your-subdomain>.ngrok-free.app/`. На сервері використовуй свій домен.
 
-### 2. Import the workflow
+### 2. Імпортувати воркфлоу
 
-In n8n: **Workflows > Import from File** and pick `AI Assistant.json`.
+У n8n: **Workflows > Import from File** і вибрати `AI Assistant.json`.
 
-### 3. Create credentials
+### 3. Створити облікові дані
 
-| Credential | Nodes | Where to get it |
+| Credential | Ноди | Де взяти |
 |---|---|---|
-| Telegram API | Telegram Trigger, Download voice, all reply nodes | Bot token from [@BotFather](https://t.me/BotFather) |
-| OpenAI API | GPT-4.1 mini, Transcribe voice | API key from platform.openai.com |
-| Google Tasks OAuth2 API | 5 task tools | Google Cloud OAuth client with the Tasks API enabled |
-| Google Calendar OAuth2 API | 3 calendar tools | Same client, Calendar API enabled |
-| Gmail OAuth2 | 4 Gmail tools | Same client, Gmail API enabled |
-| Postgres | Get user profile, Save user profile | Host, database, user and password of your Postgres |
+| Telegram API | Telegram Trigger, Download voice, усі ноди відповіді | Токен бота від [@BotFather](https://t.me/BotFather) |
+| OpenAI API | GPT-4.1 mini, Transcribe voice | API-ключ на platform.openai.com |
+| Google Tasks OAuth2 API | 5 нод задач | OAuth-клієнт у Google Cloud з увімкненим Tasks API |
+| Google Calendar OAuth2 API | 3 ноди календаря | Той самий клієнт, увімкнений Calendar API |
+| Gmail OAuth2 | 4 ноди Gmail | Той самий клієнт, увімкнений Gmail API |
+| Postgres | Get user profile, Save user profile | Хост, база, користувач і пароль твого Postgres |
 
-Open each node and select the matching credential.
+Потім відкрий кожну ноду й вибери відповідний credential.
 
-### 4. Create the profile table
+### 4. Створити таблицю профілю
 
-The Postgres nodes read and upsert `public.profile` by `user_id`. This schema matches the columns in the workflow:
+Ноди Postgres читають і роблять upsert у `public.profile` за `user_id`. Ця схема відповідає колонкам у воркфлоу:
 
 ```sql
 CREATE TABLE public.profile (
@@ -174,25 +175,25 @@ CREATE TABLE public.profile (
 );
 ```
 
-Save user profile writes `city`, `occupation`, `university`, `specialty`, `course`, `food_preferences` and `notes`. `name` and `birth_date` are read-only for the agent, so fill them in with SQL if you want the bot to know them.
+Save user profile записує `city`, `occupation`, `university`, `specialty`, `course`, `food_preferences` і `notes`. `name` і `birth_date` агент може лише читати, тож якщо хочеш, щоб бот їх знав, заповни їх через SQL.
 
-### 5. Replace the placeholders
+### 5. Замінити плейсхолдери
 
-| Placeholder | Node(s) | Value |
+| Плейсхолдер | Ноди | Значення |
 |---|---|---|
-| `YOUR_TELEGRAM_USER_ID` | If in Whitelist | Your numeric Telegram ID. Send any message to [@userinfobot](https://t.me/userinfobot) to get it |
-| `YOUR_GOOGLE_TASKLIST_ID` | Create / Delete / Get many / Get / Update a task | Select your task list from the dropdown in each node |
-| `YOUR_GOOGLE_CALENDAR_ID@group.calendar.google.com`, `YOUR_CALENDAR_NAME` | Create an event, Get many events, Update an event | Select the calendar from the dropdown; both values are replaced |
-| `YOUR_N8N_INSTANCE_ID` | workflow `meta` | Nothing to do, n8n sets it on import |
+| `YOUR_TELEGRAM_USER_ID` | If in Whitelist | Твій числовий Telegram ID. Напиши будь-що боту [@userinfobot](https://t.me/userinfobot), і він його покаже |
+| `YOUR_GOOGLE_TASKLIST_ID` | Create / Delete / Get many / Get / Update a task | Вибери свій список задач у випадаючому меню кожної ноди |
+| `YOUR_GOOGLE_CALENDAR_ID@group.calendar.google.com`, `YOUR_CALENDAR_NAME` | Create an event, Get many events, Update an event | Вибери календар у випадаючому меню, обидва значення заміняться |
+| `YOUR_N8N_INSTANCE_ID` | `meta` воркфлоу | Нічого робити не треба, n8n проставить його при імпорті |
 
-### 6. Activate
+### 6. Активувати
 
-Save, turn the workflow on, and message the bot from the account whose ID you put in the allowlist.
+Збережи, увімкни воркфлоу і напиши боту з акаунта, чий ID вказано в allowlist.
 
-## Limitations
+## Обмеження
 
-- Prompt injection is handled only by the system prompt. A carefully written email could still get past it, and there is no check outside the model before Send a message runs.
-- Save user profile is an upsert that writes all seven columns at once. If the model leaves a field out instead of passing its current value, that column can be overwritten with an empty value.
-- `updated_at` is not set by the workflow. It only gets its default on insert, unless you add a trigger in Postgres.
-- Calendar events cannot be deleted. There is no delete tool, and the agent says so when asked.
-- It runs on my own machine (n8n and Postgres locally, with a tunnel for the webhook), so it is offline whenever the computer is. The short-term memory is held in n8n's process and is lost on restart.
+- Від prompt injection захищає тільки системний промпт. Добре складений лист усе ще може його обійти, а поза моделлю перед запуском Send a message немає жодної перевірки.
+- Save user profile робить upsert одразу всіх семи колонок. Якщо модель пропустить поле замість того, щоб передати його поточне значення, колонку може бути перезаписано порожнім значенням.
+- Воркфлоу не оновлює `updated_at`. Колонка отримує `now()` лише при вставці рядка. Щоб вона оновлювалась, потрібен тригер у Postgres.
+- Видаляти події в календарі не можна: інструмента для цього немає, і агент так і відповідає.
+- Усе працює на моєму комп'ютері (n8n і Postgres локально, вебхук через тунель), тож коли комп'ютер вимкнено, бот теж не працює. Короткострокова пам'ять живе в процесі n8n і зникає після перезапуску.
